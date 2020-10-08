@@ -7,8 +7,8 @@
   $storage = new StorageClass();
 
   $provider = new \League\OAuth2\Client\Provider\GenericProvider([
-    'clientId'                => '888888888888',
-    'clientSecret'            => '88888888888888888',
+    'clientId'                => '88',
+    'clientSecret'            => '88',
     'redirectUri'             => 'http://localhost/callback.php',
     'urlAuthorize'            => 'https://login.xero.com/identity/connect/authorize',
     'urlAccessToken'          => 'https://identity.xero.com/connect/token',

@@ -12,8 +12,8 @@
 
   if ($storage->getHasExpired()) {
     $provider = new \League\OAuth2\Client\Provider\GenericProvider([
-      'clientId'                => '8888888888888',
-      'clientSecret'            => '888888888888888',
+      'clientId'                => '88',
+      'clientSecret'            => '88',
       'redirectUri'             => 'http://localhost/callback.php',
       'urlAuthorize'            => 'https://login.xero.com/identity/connect/authorize',
       'urlAccessToken'          => 'https://identity.xero.com/connect/token',

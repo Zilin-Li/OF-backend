@@ -12,9 +12,7 @@ class RequestController extends Controller
     {
       // $searchNum =60550;
       $searchNum = $request->get('jobId');
-      // session_start();
       $token = file_get_contents("TokenSave.txt");
-      // return $token;
       $tenantId = '88';
 //---------------------------------------------------------------------------------------
 //Test part:
@@ -45,29 +43,13 @@ class RequestController extends Controller
 
       $xmlDefault=simplexml_load_string($responseDefault) or die("Error: Cannot create object");
 
-      // $jobDefault = new \stdClass;
-      // $jobDefault -> jobId = strval($xmlDefault->Job->ID);
-      // $jobDefault -> state = strval($xmlDefault->Job->State);
-      // $jobDefault -> Client = strval($xmlDefault->Job->Client ->Name);
-      // dd($jobDefault);
-      // return  json_encode($jobDetail);
-//---------------------------------------------------------------------------------------
-//Test part:
-      // dd($xml);
-      // dd (strval($xml->Job->ID));
-      // dd($jobDetail);
-//----------------------------------------------------------------------------------
-
       //Get Customer field
       $responseCustom = Http::withHeaders([
           'Authorization' => 'Bearer ' . $token,
           'xero-tenant-id' => $tenantId
       ])->get('https://api.xero.com/workflowmax/3.0/job.api/get/'. $searchNum . '/customfield');
       $xmlCustom=simplexml_load_string($responseCustom) or die("Error: Cannot create object");
-
-// dd($xmlBasic);
       $array = (array)$xmlCustom->CustomFields;
-      // $arraydata = (array)$array['CustomField'][0];
       $arrayfields = (array)$array['CustomField'];
 
       //customfield
@@ -99,18 +81,17 @@ class RequestController extends Controller
       $result -> state = strval($xmlDefault->Job->State)??'';
       $result -> client = strval($xmlDefault->Job->Client ->Name)??'';
       $result -> patienName = $customfields['Patient Name']??'';
-      // $result -> dateOfBirth = ??'';
-
-      // $d = new DateTime($customfields['Date Of Birth']);
-      // $d->format('Y-m-d');
-      // return $d;
       $result -> hospital = $customfields['Hospital']??'';
       $result -> deviceType = $customfields['Device Type']??'';
       $result -> anatomy = $customfields['Anatomy']??'';
       $result -> pathology = $customfields['Pathology']??'';
       $result -> surgicalApproach = $customfields['Surgical Approach']??'';
-      // $result -> surgeryDate = $customfields['Surgery Date']??'';
+      $sDate = substr($customfields['Surgery Date'],0,10);
+      $result -> surgeryDate = $sDate??'';
+      $pDate = substr($customfields['Date Of Birth'],0,10);
+      $result -> dateOfBirth =$pDate;
       $result -> DHFStatus = $customfields['DHF Status']??'';
+
 
       return json_encode($result);
     }
