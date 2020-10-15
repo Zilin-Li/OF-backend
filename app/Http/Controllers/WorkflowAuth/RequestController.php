@@ -10,8 +10,8 @@ use GuzzleHttp\Client;
 use SimpleXMLElement;
 class RequestController extends Controller
 {
-    public function update(Request $request){
-
+    public function update(Request $request)
+    {
       $token = file_get_contents("TokenSave.txt");
       $tenantId = 'b01c0f54-45c5-439b-b103-97ef6ab6f588';
 

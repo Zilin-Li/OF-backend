@@ -21,6 +21,6 @@
         </style>
     </head>
     <body>
-        <a href="authorization.php">Connect to Workflow Max</a>
+        <a href="authorization">Connect to Workflow Max</a>
     </body>
 </html>

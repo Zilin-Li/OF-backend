@@ -1,7 +1,8 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\WorkflowAuth\RequestController;
+use App\Http\Controllers\WorkflowAuth\AuthorizationController;
+use App\Http\Controllers\WorkflowAuth\CallbackController;
 
 /*
 |--------------------------------------------------------------------------
@@ -21,7 +22,10 @@ Route::get('/', function () {
 // Route::get('test', function(){
 //   return "text";
 // });
-Route::get('test',  [RequestController::class, 'index']);
+
+Route::get('authorization',  [AuthorizationController::class, 'authorization']);
+
+Route::get('callback',  [CallbackController::class, 'callback']);
 
 // Route::get('callback', function () {
 //     return redirect('callback.php');
