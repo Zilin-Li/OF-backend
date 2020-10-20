@@ -31,6 +31,7 @@ class CallbackController extends Controller
       // If we don't have an authorization code then get one
       if (!isset($_GET['code'])) {
         echo "Something went wrong, no authorization code found";
+        
         exit("Something went wrong, no authorization code found");
 
       // Check given state against previously stored one to mitigate CSRF attack
@@ -61,6 +62,7 @@ class CallbackController extends Controller
 
         } catch (\League\OAuth2\Client\Provider\Exception\IdentityProviderException $e) {
           echo "Callback failed";
+
           exit();
         }
       }
