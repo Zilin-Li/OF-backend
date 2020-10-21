@@ -18,6 +18,7 @@ use App\Http\Controllers\WorkflowAuth\RequestController;
 Route::middleware('auth:api')->get('/user', function (Request $request) {
     return $request->user();
 });
-Route::get('searchjobonwm',  [RequestController::class, 'searchJobOnWM']);
-Route::get('update',  [RequestController::class, 'update']);
-Route::get('searchjob',  [RequestController::class, 'searchjob']);
+Route::get('searchjob',  [RequestController::class, 'searchJob']);
+// Route::get('update',  [RequestController::class, 'updateToWM']);
+// Route::get('syncdata',  [RequestController::class, 'syncData']);
+Route::post('syncdata',  [RequestController::class, 'syncData']);
