@@ -9,8 +9,6 @@ use SimpleXMLElement;
 
 class RequestController extends Controller
 {
-
-
   public function checkJobOnMonday($jobNum){
     $token = env('MONDAY_TOKEN');
     $query = '{ items_by_column_values(board_id: 736609738, column_id: "name", column_value: "'. $jobNum. '", state: active) {id name}}';
@@ -24,7 +22,7 @@ class RequestController extends Controller
     return count($jobArray);
   }
 
-  public function getJobIdFromMonday($jobId){
+  public function getItemId($jobId){
     $token = env('MONDAY_TOKEN');
     $query = '{ items_by_column_values(board_id: 736609738, column_id: "name", column_value: "' . $jobId . '", state: active) {id}}';
     $url = "https://api.monday.com/v2/";
@@ -32,44 +30,38 @@ class RequestController extends Controller
               'Authorization' => $token,
               'Content-Type' => 'application/json',
           ])->withBody(json_encode(['query' => $query]), 'application/json')->POST($url);
-    $mondayJobId = json_decode($response)->data->items_by_column_values[0]->id;
-    return $mondayJobId;
-  }
-
-  public function creatJobToMonday($jobId,$jobDetails){
-    $token = env('MONDAY_TOKEN');
-    $state = $jobDetails-> state;
-    $dhfStatus = $jobDetails-> DHFStatus;
-    $client = $jobDetails-> client;
-    $patient = $jobDetails-> patientName;
-    $dateOfBirth = $jobDetails-> dateOfBirth;
-    $device = $jobDetails-> deviceType;
-    $anatomy = $jobDetails-> anatomy;
-    $pathology = $jobDetails-> pathology;
-    $surgicalApproach = $jobDetails-> surgicalApproach;
-    $hospital = $jobDetails-> hospital;
-    $surgeryDate = $jobDetails-> surgeryDate;
-    $dhfStatusUUID = $jobDetails-> DHFStatusUUID;
-
-
+    $mondayItemId = json_decode($response)->data->items_by_column_values[0]->id;
+    return $mondayItemId;
   }
 
   public function updateToMonady($jobId,$jobDetails){
     $token = env('MONDAY_TOKEN');
-    $state = $jobDetails-> state;
-    $dhfStatus = $jobDetails-> DHFStatus;
-    $client = $jobDetails-> client;
-    $patient = $jobDetails-> patientName;
-    $dateOfBirth = $jobDetails-> dateOfBirth;
-    $device = $jobDetails-> deviceType;
-    $anatomy = $jobDetails-> anatomy;
-    $pathology = $jobDetails-> pathology;
-    $surgicalApproach = $jobDetails-> surgicalApproach;
-    $hospital = $jobDetails-> hospital;
-    $surgeryDate = $jobDetails-> surgeryDate;
-    $dhfStatusUUID = $jobDetails-> DHFStatusUUID;
+    $mondayItemId = $this -> getItemId($jobId);
+
+    $query = 'mutation { change_multiple_column_values (board_id: 736609738,item_id:'.$mondayItemId.', column_values: "'. $jobDetails .'") { id } }';
+    $url = "https://api.monday.com/v2/";
+
+    $response = Http::withHeaders([
+              'Authorization' => $token,
+              'Content-Type' => 'application/json',
+          ])->withBody(  json_encode(['query' => $query]), 'application/json')->POST($url);
 
   }
+
+
+  public function createJobToMonday($jobId,$jobDetails){
+
+    $token = env('MONDAY_TOKEN');
+    $query = 'mutation { create_item (board_id: 736609738,item_name: "'. $jobId .'", column_values:"'. $jobDetails .'") { id } }';
+
+    $url = "https://api.monday.com/v2/";
+    $response = Http::withHeaders([
+              'Authorization' => $token,
+              'Content-Type' => 'application/json',
+          ])->withBody(  json_encode(['query' => $query]), 'application/json')->POST($url);
+
+  }
+
 
   public function updateToWM($jobId,$jobDetails){
     $token = file_get_contents("TokenSave.txt");
@@ -111,53 +103,56 @@ class RequestController extends Controller
 
 
   public function syncData (Request $request){
-  // get request body content
-  //ref:https://stackoverflow.com/questions/28459172/how-do-i-get-http-request-body-content-in-laravel
+    //get job id from url
+    $jobId = $request->get('jobId');
+
+    // get and parse request body content
+    //ref:https://stackoverflow.com/questions/28459172/how-do-i-get-http-request-body-content-in-laravel
     $jobDetails = json_decode($request->getContent());
 
-    $jobId = $request->get('jobId');
-    // $state = $jobDetails-> state;
-    // $dhfStatus = $jobDetails-> DHFStatus;
-    // $client = $jobDetails-> client;
-    // $patient = $jobDetails-> patientName;
-    // $dateOfBirth = $jobDetails-> dateOfBirth;
-    // $device = $jobDetails-> deviceType;
-    // $anatomy = $jobDetails-> anatomy;
-    // $pathology = $jobDetails-> pathology;
-    // $surgicalApproach = $jobDetails-> surgicalApproach;
-    // $hospital = $jobDetails-> hospital;
-    // $surgeryDate = $jobDetails-> surgeryDate;
-    // $dhfStatusUUID = $jobDetails-> DHFStatusUUID;
-
-    $jobArrayLength=$this->checkJobOnMonday($jobId);
-
-    if($jobArrayLength == 0){
-    //Create a new job to Monday.com
-    dd("create");
-
-    }else if($jobArrayLength == 1){
-    //Update data to Monday.com
-
-
-      $mondayJobId = $this -> getJobIdFromMonday($jobId);
-      dd($mondayJobId);
-
-
-    }else{
-      // Throw an error message, Prompt the user to go to Monday.com and delete the redundant jobs
-    }
-
-
-
+    //Update to Workflow Max
     $this -> updateToWM($jobId,$jobDetails);
 
+    //Get the data ready that needs to be sent to monday.com
+    $dataSendToMonday = new \stdClass;
 
-    //
-    //
-    // dd($jobArrayLength);
+    $dataSendToMonday->status = new \stdClass;
+    $dataSendToMonday->status->label= $jobDetails-> state;
+    $dataSendToMonday->dhf_status = new \stdClass;
+    $dataSendToMonday->dhf_status->label = $jobDetails-> DHFStatus;
+    $dataSendToMonday->surgery_date = new \stdClass;
+    $dataSendToMonday->surgery_date->date = $jobDetails-> surgeryDate;
+    $dataSendToMonday->dob = new \stdClass;
+    $dataSendToMonday->dob->date =$jobDetails-> dateOfBirth;
+    $dataSendToMonday->patient_name = $jobDetails-> patientName;
+    $dataSendToMonday->surgeon = $jobDetails-> client;
+    $dataSendToMonday->device2 = $jobDetails-> deviceType;
+    $dataSendToMonday->anatomy0 = $jobDetails-> anatomy;
+    $dataSendToMonday->pathology9 =$jobDetails-> pathology;
+    $dataSendToMonday->surgical_approach0 = $jobDetails-> surgicalApproach;
+    $dataSendToMonday->hospital = $jobDetails-> hospital;
 
+    $res = json_encode($dataSendToMonday);
+    $res = addslashes($res);
 
+    //Use this method to get the job array' length on Monday with specific jobId.
+    $jobArrayLength=$this-> checkJobOnMonday($jobId);
+
+    if($jobArrayLength == 0){//This job is not exist on Monday.com
+      //Create a new job to Monday.com
+      $this -> createJobToMonday($jobId,$res);
+      return json_encode("Created ");
+
+    }else if($jobArrayLength == 1){//There is and only one job with this jobId on Monday.com
+      //Update data to Monday.com
+      $this ->updateToMonady($jobId,$res);
+      return json_encode("Updated ");
+    }else{// There are Multiple job exit with this jobId.
+      // Throw an error message, Prompt the user to go to Monday.com and delete the redundant jobs
+        return json_encode("Something wrong,Please check on Monday.com ");
+    }
   }
+
 
   public function searchJob (Request $request)
   {
