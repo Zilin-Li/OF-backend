@@ -9,9 +9,11 @@ use SimpleXMLElement;
 
 class RequestController extends Controller
 {
-  public function checkJobOnMonday($jobNum){
+  // This function uses to check whether a job is already exist on Monday.com.
+  // Return a array of job list with specific job Id.
+  public function checkJobOnMonday($jobId){
     $token = env('MONDAY_TOKEN');
-    $query = '{ items_by_column_values(board_id: 736609738, column_id: "name", column_value: "'. $jobNum. '", state: active) {id name}}';
+    $query = '{ items_by_column_values(board_id: 736609738, column_id: "name", column_value: "'. $jobId. '", state: active) {id name}}';
     $url = "https://api.monday.com/v2/";
 
     $response = Http::withHeaders([
@@ -22,6 +24,8 @@ class RequestController extends Controller
     return count($jobArray);
   }
 
+  // This fuction uses to get item id on Monday.com with specific job id.
+  // Return item id which can be use to add multiple item value.
   public function getItemId($jobId){
     $token = env('MONDAY_TOKEN');
     $query = '{ items_by_column_values(board_id: 736609738, column_id: "name", column_value: "' . $jobId . '", state: active) {id}}';
@@ -34,6 +38,8 @@ class RequestController extends Controller
     return $mondayItemId;
   }
 
+  // This function uses to update Monday.com job details with specific job id.
+  // Parameter（$jobDetails） is an array which including all job details that need to be update.
   public function updateToMonady($jobId,$jobDetails){
     $token = env('MONDAY_TOKEN');
     $mondayItemId = $this -> getItemId($jobId);
@@ -47,7 +53,8 @@ class RequestController extends Controller
           ])->withBody(  json_encode(['query' => $query]), 'application/json')->POST($url);
   }
 
-
+  // This function uses to create a new job with job details on Monday.com
+  // Parameter（$jobDetails） is an array which including all job details.
   public function createJobToMonday($jobId,$jobDetails){
 
     $token = env('MONDAY_TOKEN');
@@ -60,10 +67,12 @@ class RequestController extends Controller
           ])->withBody(  json_encode(['query' => $query]), 'application/json')->POST($url);
   }
 
-
-
+  // This function is uses to update Workflow Max data.
+  // Currently this feature only updates "state" and "DHF status"
   public function updateToWM($jobId,$jobDetails){
 
+    //Check whether the token file is exist.
+    //If not return error no. 401.
     if(file_exists("TokenSave.txt")){
       $token = file_get_contents("TokenSave.txt");
     }else{
@@ -77,7 +86,6 @@ class RequestController extends Controller
     $dhfStatusUUID = $jobDetails-> DHFStatusUUID;
 
       // Update state
-
       $url = 'https://api.xero.com/workflowmax/3.0/job.api/state';
       $xml = '<Job>
        <ID>' . $jobId . '</ID>
@@ -89,9 +97,8 @@ class RequestController extends Controller
           'xero-tenant-id' => $tenantId,
           'Authorization' => 'Bearer ' . $token,
       ])->withBody( $xml, 'text/plain; charset=utf-8')->put($url);
-
+      // After send a request, get the response code.
       $stateCode1 = $response1-> getStatusCode();
-
 
       // Update DHF state
       $url = 'https://api.xero.com/workflowmax/3.0/job.api/update/' . $jobId . '/customfield';
@@ -107,18 +114,25 @@ class RequestController extends Controller
           'xero-tenant-id' => 'b01c0f54-45c5-439b-b103-97ef6ab6f588',
           'Authorization' => 'Bearer ' . $token,
       ])->withBody( $xml, 'text/plain; charset=utf-8')->put($url);
-
+      // After send a request, get the response code.
       $stateCode2 = $response2-> getStatusCode();
+
+      // Check the responses code. if all equal to 200 means nothing wrong.
+      // If one of responses code not equal to 200, means the update failed.
+      // Return the responses code to frontend.
       if ($stateCode1!= 200 or $stateCode2!= 200 ){
         if($stateCode1==200){return $stateCode2;}
         else if ($stateCode2==200){return $stateCode1;}
         else {return $stateCode1;}
       }else{
         return 200;
-    }      // return $response1;
+    }
   }
 
-
+  // This funciton uses to receive request send from fron-tend.
+  // Parse the data sent from the front-end
+  // Call the functions to synchronize the data
+  // Sends the synchronization status information to the front-end
   public function syncData (Request $request){
     //get job id from url
     $jobId = $request->get('jobId');
@@ -127,9 +141,12 @@ class RequestController extends Controller
     //ref:https://stackoverflow.com/questions/28459172/how-do-i-get-http-request-body-content-in-laravel
     $jobDetails = json_decode($request->getContent());
     $result = new \stdClass;
-    //Update to Workflow Max
+
+    //Update to Workflow Max and get the update status code
     $updateStatusCode = $this -> updateToWM($jobId,$jobDetails);
 
+    //If the update status code equal to 200 means the update is successed,Continue to execute the function.
+    //Else return the error code and stop the function.
     if($updateStatusCode!=200){
       if($updateStatusCode == 401){
         $result-> status = "Unauthorized";
@@ -143,7 +160,6 @@ class RequestController extends Controller
 
     //Get the data ready that needs to be sent to monday.com
     $dataSendToMonday = new \stdClass;
-
     $dataSendToMonday->status = new \stdClass;
     $dataSendToMonday->status->label= $jobDetails-> state;
     $dataSendToMonday->dhf_status = new \stdClass;
@@ -159,40 +175,49 @@ class RequestController extends Controller
     $dataSendToMonday->pathology9 =$jobDetails-> pathology;
     $dataSendToMonday->surgical_approach0 = $jobDetails-> surgicalApproach;
     $dataSendToMonday->hospital = $jobDetails-> hospital;
-
     $res = json_encode($dataSendToMonday);
     $res = addslashes($res);
 
-    //Use this method to get the job array' length on Monday with specific jobId.
+    //Check the job list with specific job Id
     $jobArrayLength=$this-> checkJobOnMonday($jobId);
 
-    if($jobArrayLength == 0){//This job is not exist on Monday.com
-      //Create a new job to Monday.com
+    //If the $jobArrayLength equal to 0, means this job id is not exist on Monday.com.
+    //Create a new job on Monday.com.
+    if($jobArrayLength == 0){
       $this -> createJobToMonday($jobId,$res);
-      // return json_encode("This new job has been created to Monday.com and update to Workflow Max.");
-
+      // return the status and status descripiton to fron-end.
       $result-> status = "OK";
       $result-> description = "This new job has been created to Monday.com and update to Workflow Max.";
-    }else if($jobArrayLength == 1){//There is and only one job with this jobId on Monday.com
-      //Update data to Monday.com
+    }
+    //If the $jobArrayLength equal to 1, means this job id is already exist and only one on Monday.com.
+    //Update the job details on Monday.com
+    else if($jobArrayLength == 1){
       $this ->updateToMonady($jobId,$res);
-      // return json_encode("This job has been update to Workflow Max and Monday.com.");
+      // return the status and status descripiton to fron-end.
       $result-> status = "OK";
       $result-> description = "This job has been update to Workflow Max and Monday.com.";
-
-    }else{// There are Multiple job exit with this jobId.
-      // Throw an error message, Prompt the user to go to Monday.com and delete the redundant jobs
-        // return json_encode("Something wrong, Please check on Monday.com ");
-        $result-> status = "ERROR";
-        $result-> description = "Something wrong, Please check on Monday.com ";
+    }
+    //If the $jobArrayLength greater than 1, means this job id has multiple records on Monday
+    // Return error message to front-end.
+    else{
+      $result-> status = "ERROR";
+      $result-> description = "Something wrong, Please check on Monday.com ";
     }
     return json_encode($result);
   }
 
+  // This funciton uses to receive search request send from fron-tend.
+  // Parse the data sent from the front-end
+  // Call the functions to search the job information from Workflow Max
+  // If the job is exist in Workflow Max, Package the data and send it to the front-end
+  // If the job is not exist in Workflow Max, send the error / fail information to front-end
   public function searchJob (Request $request)
   {
-    // $searchNum =60550;
+    // Get search job id from the request
     $searchNum = $request->get('jobId');
+
+    //Check whether the token file is exist.
+    //If not return error no. 401.
     if(file_exists("TokenSave.txt")){
       $token = file_get_contents("TokenSave.txt");
     }else{
@@ -201,45 +226,43 @@ class RequestController extends Controller
       return json_encode($result);
     }
 
-
     $tenantId = env('WORKFLOW_TENANT_ID');
 
-    // Get Job Details by job No. --finished
+    // Send request to get the default job information from Workflow Max .
     $responseDefault = Http::withHeaders([
         'Authorization' => 'Bearer ' . $token,
         'xero-tenant-id' => $tenantId
     ])->get('https://api.xero.com/workflowmax/3.0/job.api/get/' . $searchNum);
-
+    //Check whether the request send successed.
     $stateCode1 = $responseDefault-> getStatusCode();
-
+    // If state code equal to 401, means something wrong with the token.
     if ($stateCode1==401){
       $result = new \stdClass;
       $result-> status = "Unauthorized";
       return json_encode($result);
     }
-
     $xmlDefault=simplexml_load_string($responseDefault) or die("Error: Cannot create object");
 
-    //Get Customer field
+    // Send request to get the user-defined information from Workflow Max .
     $responseCustom = Http::withHeaders([
         'Authorization' => 'Bearer ' . $token,
         'xero-tenant-id' => $tenantId
     ])->get('https://api.xero.com/workflowmax/3.0/job.api/get/'. $searchNum . '/customfield');
-
+    //Check whether the request send successed.
     $stateCode2 = $responseCustom-> getStatusCode();
-
+    // If state code equal to 401, means something wrong with the token.
     if ($stateCode2==401){
       $result = new \stdClass;
       $result-> status = "Unauthorized";
       return json_encode($result);
     }
-
     $xmlCustom=simplexml_load_string($responseCustom) or die("Error: Cannot create object");
 
+    // If Job id exist and successed get all the job information. Pakage the job information.
+    // If job id is not exist in Workflow Max. Send the error message to front-end.
     if($xmlDefault->Status == 'OK' && $xmlCustom->Status == 'OK'){
       $array = (array)$xmlCustom->CustomFields;
       $arrayfields = (array)$array['CustomField'];
-
       //customfield
       for( $x = 0; $x < count($arrayfields); $x++){
         $arraydata = (array)$arrayfields[$x];
