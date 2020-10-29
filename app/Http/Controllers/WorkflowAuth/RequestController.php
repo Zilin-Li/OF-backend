@@ -45,7 +45,6 @@ class RequestController extends Controller
               'Authorization' => $token,
               'Content-Type' => 'application/json',
           ])->withBody(  json_encode(['query' => $query]), 'application/json')->POST($url);
-
   }
 
 
@@ -59,12 +58,19 @@ class RequestController extends Controller
               'Authorization' => $token,
               'Content-Type' => 'application/json',
           ])->withBody(  json_encode(['query' => $query]), 'application/json')->POST($url);
-
   }
 
 
+
   public function updateToWM($jobId,$jobDetails){
-    $token = file_get_contents("TokenSave.txt");
+
+    if(file_exists("TokenSave.txt")){
+      $token = file_get_contents("TokenSave.txt");
+    }else{
+      // if not token, rertun 401. Frontend redirect to Authentication page.
+      return 401;
+    }
+
     $tenantId = env('WORKFLOW_TENANT_ID');
     $state = $jobDetails-> state;
     $dhfStatus = $jobDetails-> DHFStatus;
@@ -79,10 +85,13 @@ class RequestController extends Controller
       </Job>
       ';
 
-      $response = Http::withHeaders([
+      $response1 = Http::withHeaders([
           'xero-tenant-id' => $tenantId,
           'Authorization' => 'Bearer ' . $token,
       ])->withBody( $xml, 'text/plain; charset=utf-8')->put($url);
+
+      $stateCode1 = $response1-> getStatusCode();
+
 
       // Update DHF state
       $url = 'https://api.xero.com/workflowmax/3.0/job.api/update/' . $jobId . '/customfield';
@@ -94,11 +103,19 @@ class RequestController extends Controller
               </CustomField>
       </CustomFields>
       ';
-      $response1 = Http::withHeaders([
+      $response2 = Http::withHeaders([
           'xero-tenant-id' => 'b01c0f54-45c5-439b-b103-97ef6ab6f588',
           'Authorization' => 'Bearer ' . $token,
       ])->withBody( $xml, 'text/plain; charset=utf-8')->put($url);
-      // return $response1;
+
+      $stateCode2 = $response2-> getStatusCode();
+      if ($stateCode1!= 200 or $stateCode2!= 200 ){
+        if($stateCode1==200){return $stateCode2;}
+        else if ($stateCode2==200){return $stateCode1;}
+        else {return $stateCode1;}
+      }else{
+        return 200;
+    }      // return $response1;
   }
 
 
@@ -109,9 +126,20 @@ class RequestController extends Controller
     // get and parse request body content
     //ref:https://stackoverflow.com/questions/28459172/how-do-i-get-http-request-body-content-in-laravel
     $jobDetails = json_decode($request->getContent());
-
+    $result = new \stdClass;
     //Update to Workflow Max
-    $this -> updateToWM($jobId,$jobDetails);
+    $updateStatusCode = $this -> updateToWM($jobId,$jobDetails);
+
+    if($updateStatusCode!=200){
+      if($updateStatusCode == 401){
+        $result-> status = "Unauthorized";
+        $result-> description = "Unauthorized";
+      }else{
+        $result-> status = "ERROR";
+        $result-> description = "Workflow Max update failed";
+      }
+      return json_encode($result);
+    }
 
     //Get the data ready that needs to be sent to monday.com
     $dataSendToMonday = new \stdClass;
@@ -141,25 +169,39 @@ class RequestController extends Controller
     if($jobArrayLength == 0){//This job is not exist on Monday.com
       //Create a new job to Monday.com
       $this -> createJobToMonday($jobId,$res);
-      return json_encode("Created ");
+      // return json_encode("This new job has been created to Monday.com and update to Workflow Max.");
 
+      $result-> status = "OK";
+      $result-> description = "This new job has been created to Monday.com and update to Workflow Max.";
     }else if($jobArrayLength == 1){//There is and only one job with this jobId on Monday.com
       //Update data to Monday.com
       $this ->updateToMonady($jobId,$res);
-      return json_encode("Updated ");
+      // return json_encode("This job has been update to Workflow Max and Monday.com.");
+      $result-> status = "OK";
+      $result-> description = "This job has been update to Workflow Max and Monday.com.";
+
     }else{// There are Multiple job exit with this jobId.
       // Throw an error message, Prompt the user to go to Monday.com and delete the redundant jobs
-        return json_encode("Something wrong,Please check on Monday.com ");
+        // return json_encode("Something wrong, Please check on Monday.com ");
+        $result-> status = "ERROR";
+        $result-> description = "Something wrong, Please check on Monday.com ";
     }
+    return json_encode($result);
   }
-
 
   public function searchJob (Request $request)
   {
     // $searchNum =60550;
     $searchNum = $request->get('jobId');
+    if(file_exists("TokenSave.txt")){
+      $token = file_get_contents("TokenSave.txt");
+    }else{
+      $result = new \stdClass;
+      $result-> status = "Unauthorized";
+      return json_encode($result);
+    }
 
-    $token = file_get_contents("TokenSave.txt");
+
     $tenantId = env('WORKFLOW_TENANT_ID');
 
     // Get Job Details by job No. --finished
@@ -168,6 +210,14 @@ class RequestController extends Controller
         'xero-tenant-id' => $tenantId
     ])->get('https://api.xero.com/workflowmax/3.0/job.api/get/' . $searchNum);
 
+    $stateCode1 = $responseDefault-> getStatusCode();
+
+    if ($stateCode1==401){
+      $result = new \stdClass;
+      $result-> status = "Unauthorized";
+      return json_encode($result);
+    }
+
     $xmlDefault=simplexml_load_string($responseDefault) or die("Error: Cannot create object");
 
     //Get Customer field
@@ -175,6 +225,14 @@ class RequestController extends Controller
         'Authorization' => 'Bearer ' . $token,
         'xero-tenant-id' => $tenantId
     ])->get('https://api.xero.com/workflowmax/3.0/job.api/get/'. $searchNum . '/customfield');
+
+    $stateCode2 = $responseCustom-> getStatusCode();
+
+    if ($stateCode2==401){
+      $result = new \stdClass;
+      $result-> status = "Unauthorized";
+      return json_encode($result);
+    }
 
     $xmlCustom=simplexml_load_string($responseCustom) or die("Error: Cannot create object");
 
