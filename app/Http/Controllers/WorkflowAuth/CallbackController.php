@@ -55,7 +55,7 @@ class CallbackController extends Controller
 
           $result = $identityApi->getConnections();
 
-          file_put_contents ("TokenSave.txt" , $accessToken->getToken());
+          file_put_contents ("..\storage\TokenSave.txt" , $accessToken->getToken());
 
           header('Location: ' . 'http://localhost:8080/mainpage');
           exit();

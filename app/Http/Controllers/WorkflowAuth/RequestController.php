@@ -73,8 +73,8 @@ class RequestController extends Controller
 
     //Check whether the token file is exist.
     //If not return error no. 401.
-    if(file_exists("TokenSave.txt")){
-      $token = file_get_contents("TokenSave.txt");
+    if(file_exists("..\storage\TokenSave.txt")){
+      $token = file_get_contents("..\storage\TokenSave.txt");
     }else{
       // if not token, rertun 401. Frontend redirect to Authentication page.
       return 401;
@@ -187,7 +187,7 @@ class RequestController extends Controller
       $this -> createJobToMonday($jobId,$res);
       // return the status and status descripiton to fron-end.
       $result-> status = "OK";
-      $result-> description = "This new job has been created to Monday.com and update to Workflow Max.";
+      $result-> description = "Job: " . $jobId ." has been created to Monday.com and update to Workflow Max.";
     }
     //If the $jobArrayLength equal to 1, means this job id is already exist and only one on Monday.com.
     //Update the job details on Monday.com
@@ -195,7 +195,7 @@ class RequestController extends Controller
       $this ->updateToMonady($jobId,$res);
       // return the status and status descripiton to fron-end.
       $result-> status = "OK";
-      $result-> description = "This job has been update to Workflow Max and Monday.com.";
+      $result-> description = "Job: " . $jobId ." has been update to Workflow Max and Monday.com.";
     }
     //If the $jobArrayLength greater than 1, means this job id has multiple records on Monday
     // Return error message to front-end.
