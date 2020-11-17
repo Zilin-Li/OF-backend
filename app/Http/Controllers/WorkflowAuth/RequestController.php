@@ -73,8 +73,8 @@ class RequestController extends Controller
 
     //Check whether the token file is exist.
     //If not return error no. 401.
-    if(file_exists("..\storage\TokenSave.txt")){
-      $token = file_get_contents("..\storage\TokenSave.txt");
+    if(file_exists("../storage/TokenSave.txt")){
+      $token = file_get_contents("../storage/TokenSave.txt");
     }else{
       // if not token, rertun 401. Frontend redirect to Authentication page.
       return 401;
@@ -134,6 +134,7 @@ class RequestController extends Controller
   // Call the functions to synchronize the data
   // Sends the synchronization status information to the front-end
   public function syncData (Request $request){
+
     //get job id from url
     $jobId = $request->get('jobId');
 
@@ -186,6 +187,7 @@ class RequestController extends Controller
     if($jobArrayLength == 0){
       $this -> createJobToMonday($jobId,$res);
       // return the status and status descripiton to fron-end.
+
       $result-> status = "OK";
       $result-> description = "Job: " . $jobId ." has been created to Monday.com and update to Workflow Max.";
     }
@@ -218,8 +220,8 @@ class RequestController extends Controller
 
     //Check whether the token file is exist.
     //If not return error no. 401.
-    if(file_exists("TokenSave.txt")){
-      $token = file_get_contents("TokenSave.txt");
+    if(file_exists("../storage/TokenSave.txt")){
+      $token = file_get_contents("../storage/TokenSave.txt");
     }else{
       $result = new \stdClass;
       $result-> status = "Unauthorized";
@@ -235,8 +237,8 @@ class RequestController extends Controller
     ])->get('https://api.xero.com/workflowmax/3.0/job.api/get/' . $searchNum);
     //Check whether the request send successed.
     $stateCode1 = $responseDefault-> getStatusCode();
-    // If state code equal to 401, means something wrong with the token.
-    if ($stateCode1==401){
+    // If state code not equal to 200, means something wrong with the token
+    if ($stateCode1!=200){
       $result = new \stdClass;
       $result-> status = "Unauthorized";
       return json_encode($result);
@@ -250,8 +252,8 @@ class RequestController extends Controller
     ])->get('https://api.xero.com/workflowmax/3.0/job.api/get/'. $searchNum . '/customfield');
     //Check whether the request send successed.
     $stateCode2 = $responseCustom-> getStatusCode();
-    // If state code equal to 401, means something wrong with the token.
-    if ($stateCode2==401){
+    // If state code not equal to 200, means something wrong with the token.
+    if ($stateCode2!=200){
       $result = new \stdClass;
       $result-> status = "Unauthorized";
       return json_encode($result);

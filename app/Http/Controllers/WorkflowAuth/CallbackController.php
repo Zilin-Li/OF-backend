@@ -9,13 +9,8 @@ require '../vendor/autoload.php';
 
 class CallbackController extends Controller
 {
-
     public function callback()
     {
-      // ini_set('display_errors', 'On');
-
-      // require_once('storage.php');
-
       // Storage Classe uses sessions for storing token > extend to your DB of choice
       $storage = new Storage();
 
@@ -57,7 +52,9 @@ class CallbackController extends Controller
 
           file_put_contents ("..\storage\TokenSave.txt" , $accessToken->getToken());
 
+          // This path is the front-end MainPage
           header('Location: ' . 'http://localhost:8080/mainpage');
+          // header('Location: ' . 'https://ossis.willin.xyz/#/mainpage');
           exit();
 
         } catch (\League\OAuth2\Client\Provider\Exception\IdentityProviderException $e) {
