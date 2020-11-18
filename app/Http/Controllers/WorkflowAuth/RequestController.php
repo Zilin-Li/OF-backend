@@ -176,8 +176,11 @@ class RequestController extends Controller
     $dataSendToMonday->pathology9 =$jobDetails-> pathology;
     $dataSendToMonday->surgical_approach0 = $jobDetails-> surgicalApproach;
     $dataSendToMonday->hospital = $jobDetails-> hospital;
+    // $dataSendToMonday->hospital ="Queensland Children's Hospital";
     $res = json_encode($dataSendToMonday);
-    $res = addslashes($res);
+    
+    // adds slashes to double quotes
+    $res = addcslashes($res, '"');
 
     //Check the job list with specific job Id
     $jobArrayLength=$this-> checkJobOnMonday($jobId);
@@ -207,6 +210,8 @@ class RequestController extends Controller
     }
     return json_encode($result);
   }
+
+
 
   // This funciton uses to receive search request send from fron-tend.
   // Parse the data sent from the front-end
